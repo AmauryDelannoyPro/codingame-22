@@ -18,7 +18,7 @@ class Joueur:
         self.recycleurs.clear()
 
 
-@dataclass(frozen=True)
+@dataclass(eq=False)
 class Coord:
     ligne: int
     colonne: int
@@ -28,28 +28,34 @@ class Coord:
 
 
 @dataclass
-class Case:
+class Case(Coord):
     scrap_amount = 0
     owner = -1
-    coord: Coord
     nb_unit = 0
     nb_recycler = 0
     can_build = False
     can_spawn = False
     in_recycler_range = False
 
+    def __init__(self, c: Coord):
+        super().__init__(c.ligne,c.colonne)
+
     def __repr__(self):
         return f"{coord} owned by {self.owner}. {self.nb_unit} units / {self.nb_recycler} recycler"
 
 
 @dataclass
-class Robot:
-    coord: Coord
+class Robot(Coord):
+
+    def __init__(self, c: Coord):
+        super().__init__(c.ligne,c.colonne)
 
 
 @dataclass
-class Recycleur:
-    coord: Coord
+class Recycleur(Coord):
+
+    def __init__(self, c: Coord):
+        super().__init__(c.ligne,c.colonne)
 
 
 def debug(msg):
@@ -57,6 +63,7 @@ def debug(msg):
 
 
 def afficheMap():
+    # TODO faire mieux quand on aura la motiv
     debug(map_table)
 
 
@@ -75,7 +82,7 @@ while True:
     for i in range(height):
         map_table.append([])
         for j in range(width):
-            coord = Coord(ligne=i, colonne=j)
+            coord = Coord(i,j)
             new_case = Case(coord)
             # owner: 1 = me, 0 = foe, -1 = neutral
             scrap_amount, owner, units, recycler, can_build, can_spawn, in_range_of_recycler = [int(k) for k in
@@ -102,9 +109,10 @@ while True:
             # Add robots
             if units > 0:
                 robolisto = []
-                [robolisto.append(r) for r in range(units)]
+                [robolisto.append(Robot(coord)) for r in range(units)]
                 # for num in range(units):
                 #     robolisto.append(Robot(coord))
+                # FIXME : ça ajoute a tous les joueurs. Tout le monde a 8 robots tour &
                 current_owner.robots.update({coord: robolisto})
             # Add recycler
             if recycler > 0:
