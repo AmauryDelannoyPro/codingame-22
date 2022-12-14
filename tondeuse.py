@@ -2,6 +2,8 @@ from dataclasses import dataclass, field
 import sys
 import math
 
+from operator import attrgetter
+
 # region dataclass
 @dataclass
 class Joueur:
@@ -43,11 +45,22 @@ class Case(Coord):
         super().__init__(c.x, c.y)
 
     def __repr__(self):
-        return f"Case{super().__repr__()} a {self.owner} [{self.nb_unit} units/{self.nb_recycler} recycler]"
+        return f"Case{super().__repr__()} a {self.owner} [({self.scrap_amount}-{self.scrap_value}) S/ {self.nb_unit} U/ {self.nb_recycler} R]"
 
     def calcul_scrap_value(self):
-        # TODO
-        pass
+        self.scrap_value = scrap_amount
+        # UP
+        if self.y > 0:
+            self.scrap_value += get_case(self.x, self.y-1).scrap_amount
+        # DOWN
+        if self.y < height - 1:
+            self.scrap_value += get_case(self.x, self.y + 1).scrap_amount
+        # LEFT
+        if self.x > 0:
+            self.scrap_value += get_case(self.x - 1, self.y).scrap_amount
+        # RIGHT
+        if self.x < width - 1:
+            self.scrap_value += get_case(self.x + 1, self.y).scrap_amount
 
 # @dataclass
 # class Robot(Coord):
@@ -61,6 +74,14 @@ class Case(Coord):
 #         super().__init__(c.x, c.y)
 # endregion dataclass
 
+# region globals
+map_table = []
+width, height = [int(i) for i in input().split()]
+j_ally, j_ennemy, j_neutre = Joueur(1), Joueur(0), Joueur(-1)
+output = []
+# endregion globals
+
+
 # region helper
 def debug(msg):
     print(msg, file=sys.stderr, flush=True)
@@ -69,6 +90,10 @@ def debug(msg):
 def afficheMap():
     # TODO faire mieux quand on aura la motiv
     debug(map_table)
+
+
+def get_case(x,y) -> Case:
+    return map_table[y][x]
 # endregion helper
 
 
@@ -86,24 +111,27 @@ def attack_recycler():
         # TODO gerer le else
         move_all_to(Coord(5,5))
 
-map_table = []
-width, height = [int(i) for i in input().split()]
-j_ally, j_ennemy, j_neutre = Joueur(1), Joueur(0), Joueur(-1)
-output = []
-
 
 def build_recycler():
     """
     On regarde si construire un recycler peut rapporter +10 matériaux
     Si oui, on prend celui qui rapporte un max
     """
-    # TODO
-    pass
+    if j_ally.matter >= 10:
+        # TODO gérer si la case est déja miné
+        # TODO la recherche est ptét pas top. On a build sur une case qui avait 22 alors qu'une 24 était dispo
+        not_recycling_spots = [c for c in j_ally.cases if c.nb_recycler ==0]
+        better_spot = max(not_recycling_spots, key=attrgetter('scrap_value'))
+        debug(better_spot)
+
+        # ça a l'air worth, on construit
+        if better_spot.scrap_value > 10:
+            output.append(f"BUILD {better_spot.x} {better_spot.y}")
 
 
 def build_robot():
     """
-    Après avoir fait des recyclers, s'il reste des matérieux
+    Après avoir fait des recyclers, s'il reste des matériaux
     On voit pour construire des robots
     """
     # TODO
@@ -111,12 +139,12 @@ def build_robot():
 
 
 while True:
-    # Nb matière a dispo par joueur
-    j_ally.matter, j_ennemy.matter = [int(i) for i in input().split()]
-
     # Vide les infos des joueurs
     [joueur.reset() for joueur in [j_ally, j_ennemy, j_neutre]]
     output = []
+
+    # Nb matière a dispo par joueur
+    j_ally.matter, j_ennemy.matter = [int(i) for i in input().split()]
 
     for i in range(height):
         map_table.append([])
@@ -156,7 +184,7 @@ while True:
     # REFRESH CASE WITH SCRAP POSSIBLE VALUE
     for i in range(height):
         for j in range(width):
-            map_table[i][j].calcul_scrap_value()
+            get_case(j,i).calcul_scrap_value()
 
     # BUILD
     build_recycler()
