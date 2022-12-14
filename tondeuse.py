@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 import sys
 import math
 
@@ -7,9 +7,10 @@ import math
 class Joueur:
     id: int
     matter = 0
-    cases = []
-    robots = {}
-    recycleurs = {}
+    # si on ne fait pas field mais direct le type, on aura une variable de classe au lieu de variable d'instance
+    cases: list = field(default_factory=list)
+    robots: dict = field(default_factory=dict)
+    recycleurs: dict = field(default_factory=dict)
 
     def reset(self):
         self.matter = 0
@@ -74,8 +75,6 @@ while True:
     # Nb matière a dispo par joueur
     j_ally.matter, j_ennemy.matter = [int(i) for i in input().split()]
 
-    debug("Nouveau tour")
-
     # Vide les infos des joueurs
     [joueur.reset() for joueur in [j_ally, j_ennemy, j_neutre]]
 
@@ -110,9 +109,6 @@ while True:
             if units > 0:
                 robolisto = []
                 [robolisto.append(Robot(coord)) for r in range(units)]
-                # for num in range(units):
-                #     robolisto.append(Robot(coord))
-                # FIXME : ça ajoute a tous les joueurs. Tout le monde a 8 robots tour &
                 current_owner.robots.update({coord: robolisto})
             # Add recycler
             if recycler > 0:
