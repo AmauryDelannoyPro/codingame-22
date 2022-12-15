@@ -1,3 +1,4 @@
+import copy
 from dataclasses import dataclass, field
 import sys
 import math
@@ -40,6 +41,7 @@ class Case(Coord):
     can_spawn = False
     in_recycler_range = False
     scrap_value = 0  # Total scrap avec case adjacente
+    is_recycled = False
 
     def __init__(self, c: Coord):
         super().__init__(c.x, c.y)
@@ -51,16 +53,43 @@ class Case(Coord):
         self.scrap_value = scrap_amount
         # UP
         if self.y > 0:
-            self.scrap_value += get_case(self.x, self.y-1).scrap_amount
+            case = get_case(self.x, self.y-1)
+            if not case.is_recycled:
+                self.scrap_value += case.scrap_amount
         # DOWN
         if self.y < height - 1:
-            self.scrap_value += get_case(self.x, self.y + 1).scrap_amount
+            case = get_case(self.x, self.y + 1)
+            if not case.is_recycled:
+                self.scrap_value += case.scrap_amount
         # LEFT
         if self.x > 0:
-            self.scrap_value += get_case(self.x - 1, self.y).scrap_amount
+            case = get_case(self.x - 1, self.y)
+            if not case.is_recycled:
+                self.scrap_value += case.scrap_amount
         # RIGHT
         if self.x < width - 1:
-            self.scrap_value += get_case(self.x + 1, self.y).scrap_amount
+            case = get_case(self.x + 1, self.y)
+            if not case.is_recycled:
+                self.scrap_value += case.scrap_amount
+
+
+    def calcul_is_recycled(self):
+        if self.nb_recycler > 0:
+            self.is_recycled = True
+        else :
+            # UP
+            if self.y > 0:
+                self.is_recycled = self.is_recycled or get_case(self.x, self.y-1).nb_recycler > 0
+            # DOWN
+            if self.y < height - 1:
+                self.is_recycled = self.is_recycled or get_case(self.x, self.y + 1).nb_recycler > 0
+            # LEFT
+            if self.x > 0:
+                self.is_recycled = self.is_recycled or get_case(self.x - 1, self.y).nb_recycler > 0
+            # RIGHT
+            if self.x < width - 1:
+                self.is_recycled = self.is_recycled or get_case(self.x + 1, self.y).nb_recycler > 0
+        debug(f"{self.x},{self.y} is_recycled = {self.is_recycled}")
 
 # @dataclass
 # class Robot(Coord):
@@ -118,15 +147,24 @@ def build_recycler():
     Si oui, on prend celui qui rapporte un max
     """
     if j_ally.matter >= 10:
-        # TODO gérer si la case est déja miné
-        # TODO la recherche est ptét pas top. On a build sur une case qui avait 22 alors qu'une 24 était dispo
-        not_recycling_spots = [c for c in j_ally.cases if c.nb_recycler ==0]
-        better_spot = max(not_recycling_spots, key=attrgetter('scrap_value'))
-        debug(better_spot)
+        # TODO la recherche est ptét pas top.
+        # Parfois on empiete sur des recycleurs, le calcul indique 35 scrap alors qu'il devrait y avoir 26
+        # On a build sur une case qui avait 22 alors qu'une 24 était dispo
 
-        # ça a l'air worth, on construit
-        if better_spot.scrap_value > 10:
-            output.append(f"BUILD {better_spot.x} {better_spot.y}")
+        # deepcopy : copy liste et sous liste sans ref a l'original
+        copy_my_cases = copy.deepcopy(j_ally.cases)
+        for case in copy_my_cases:
+            case.calcul_is_recycled()
+            case.calcul_scrap_value()
+
+        not_recycling_spots = [c for c in copy_my_cases if c.is_recycled == False]
+        if len(not_recycling_spots) > 0:
+            better_spot = max(not_recycling_spots, key=attrgetter('scrap_value'))
+            debug(better_spot)
+
+            # ça a l'air worth, on construit
+            if better_spot.scrap_value > 10:
+                output.append(f"BUILD {better_spot.x} {better_spot.y}")
 
 
 def build_robot():
