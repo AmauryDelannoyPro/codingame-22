@@ -171,10 +171,29 @@ def build_robot():
     """
     Après avoir fait des recyclers, s'il reste des matériaux
     On voit pour construire des robots
+    On cherche la case la plus proche de celles des ennemis
+    On build dessus
     """
     # TODO
     pass
 
+
+def attack_closest_ennemy_cases():
+    """
+    On va vers la case ennemi la plus proche
+    :return:
+    """
+    for coord, nb_robot in j_ally.robots.items():
+        closest = {}
+        ally_coord = [coord.x, coord.y]
+        for ennemy_case in j_ennemy.cases:
+            ennemy_coord = [ennemy_case.x, ennemy_case.y]
+            distance = math.dist(ally_coord, ennemy_coord)
+
+            if len(closest)==0 or distance < list(closest.values())[0]:
+                closest.clear()
+                closest.update({Coord(ennemy_coord[0], ennemy_coord[1]): distance})
+        output.append(f"MOVE {nb_robot} {coord.x} {coord.y} {list(closest.keys())[0].x} {list(closest.keys())[0].y}")
 
 while True:
     # Vide les infos des joueurs
@@ -228,6 +247,7 @@ while True:
     build_recycler()
     build_robot()
     # MOVE
+    attack_closest_ennemy_cases()
     attack_recycler()
     # SPAWN
 
