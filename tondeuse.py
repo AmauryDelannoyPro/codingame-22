@@ -31,15 +31,16 @@ class Coord:
         return f"({self.x},{self.y})"
 
 
-@dataclass
+@dataclass(eq=False)
 class Case(Coord):
     scrap_amount : int = field(default_factory=int)
     owner : int = field(default_factory=int)
     nb_unit : int = field(default_factory=int)
     nb_recycler : int = field(default_factory=int)
-    can_build = False
-    can_spawn = False
-    in_recycler_range = False
+    # TODO utiliser ces cases, nom de nom !
+    can_build : bool = field(default_factory=bool)
+    can_spawn : bool = field(default_factory=bool)
+    in_recycler_range : bool = field(default_factory=bool)
     scrap_value = 0  # Total scrap avec case adjacente
     is_recycled = False
 
@@ -89,7 +90,6 @@ class Case(Coord):
             # RIGHT
             if self.x < width - 1:
                 self.is_recycled = self.is_recycled or get_case(self.x + 1, self.y).nb_recycler > 0
-        debug(f"{self.x},{self.y} is_recycled = {self.is_recycled}")
 
 # @dataclass
 # class Robot(Coord):
@@ -146,36 +146,28 @@ def build_recycler():
     On regarde si construire un recycler peut rapporter +10 matériaux
     Si oui, on prend celui qui rapporte un max
     """
-    if j_ally.matter >= 10:
-        # TODO la recherche est ptét pas top.
-        # Parfois on empiete sur des recycleurs, le calcul indique 35 scrap alors qu'il devrait y avoir 26
-        # On a build sur une case qui avait 22 alors qu'une 24 était dispo
 
-        # deepcopy : copy liste et sous liste sans ref a l'original
-        copy_my_cases = copy.deepcopy(j_ally.cases)
-        for case in copy_my_cases:
-            case.calcul_is_recycled()
-            case.calcul_scrap_value()
+    # LIMIT NB RECYCLER à 3 max
+    if len(j_ally.recycleurs) < 3:
+        if j_ally.matter >= 10:
+            # TODO Utiliser les infos de debug 'can_build' et l'autre
+            # TODO la recherche est ptét pas top.
+            # Parfois on empiete sur des recycleurs, le calcul indique 35 scrap alors qu'il devrait y avoir 26
+            # On a build sur une case qui avait 22 alors qu'une 24 était dispo
 
-        not_recycling_spots = [c for c in copy_my_cases if c.is_recycled == False]
-        if len(not_recycling_spots) > 0:
-            better_spot = max(not_recycling_spots, key=attrgetter('scrap_value'))
-            debug(better_spot)
+            # deepcopy : copy liste et sous liste sans ref a l'original
+            copy_my_cases = copy.deepcopy(j_ally.cases)
+            for case in copy_my_cases:
+                case.calcul_is_recycled()
+                case.calcul_scrap_value()
 
-            # ça a l'air worth, on construit
-            if better_spot.scrap_value > 10:
-                output.append(f"BUILD {better_spot.x} {better_spot.y}")
+            not_recycling_spots = [c for c in copy_my_cases if c.is_recycled == False and c.can_build]
+            if len(not_recycling_spots) > 0:
+                better_spot = max(not_recycling_spots, key=attrgetter('scrap_value'))
 
-
-def build_robot():
-    """
-    Après avoir fait des recyclers, s'il reste des matériaux
-    On voit pour construire des robots
-    On cherche la case la plus proche de celles des ennemis
-    On build dessus
-    """
-    # TODO
-    pass
+                # ça a l'air worth, on construit
+                if better_spot.scrap_value > 10:
+                    output.append(f"BUILD {better_spot.x} {better_spot.y}")
 
 
 def attack_closest_ennemy_cases():
@@ -183,6 +175,7 @@ def attack_closest_ennemy_cases():
     On va vers la case ennemi la plus proche
     :return:
     """
+    # TODO prendre en compte si les cases sont inaccessibles
     for coord, nb_robot in j_ally.robots.items():
         closest = {}
         ally_coord = [coord.x, coord.y]
@@ -194,6 +187,26 @@ def attack_closest_ennemy_cases():
                 closest.clear()
                 closest.update({Coord(ennemy_coord[0], ennemy_coord[1]): distance})
         output.append(f"MOVE {nb_robot} {coord.x} {coord.y} {list(closest.keys())[0].x} {list(closest.keys())[0].y}")
+
+
+def spawn_closest_ennemy_cases():
+    closest = {}
+    for my_case in j_ally.cases:
+        if my_case.can_spawn:
+            ally_coord = [my_case.x, my_case.y]
+            for ennemy_case in j_ennemy.cases:
+                ennemy_coord = [ennemy_case.x, ennemy_case.y]
+                distance = math.dist(ally_coord, ennemy_coord)
+
+                if len(closest) == 0 or distance < list(closest.values())[0]:
+                    closest.clear()
+                    debug(f"Closest spawn : {my_case}")
+                    closest.update({my_case: distance})
+
+    if len(closest) > 0:
+        nb_robot = j_ally.matter // 10 #On construit autant de robot que possible
+        output.append(f"SPAWN {nb_robot} {list(closest.keys())[0].x} {list(closest.keys())[0].y}")
+
 
 while True:
     # Vide les infos des joueurs
@@ -245,10 +258,10 @@ while True:
 
     # BUILD
     build_recycler()
-    build_robot()
     # MOVE
     attack_closest_ennemy_cases()
-    attack_recycler()
+    # attack_recycler()
     # SPAWN
+    spawn_closest_ennemy_cases()
 
     print("WAIT") if len(output) == 0 else print(";".join(output))
