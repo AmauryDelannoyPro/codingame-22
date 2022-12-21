@@ -175,18 +175,32 @@ def attack_closest_ennemy_cases():
     On va vers la case ennemi la plus proche
     :return:
     """
-    # TODO prendre en compte si les cases sont inaccessibles
-    for coord, nb_robot in j_ally.robots.items():
-        closest = {}
-        ally_coord = [coord.x, coord.y]
-        for ennemy_case in j_ennemy.cases:
-            ennemy_coord = [ennemy_case.x, ennemy_case.y]
-            distance = math.dist(ally_coord, ennemy_coord)
+    RATIO_DISTANCE = 5
+    for my_robot_coord, nb_robot in j_ally.robots.items():
+        ally_coord = [my_robot_coord.x, my_robot_coord.y]
+        closest_ennemy = find_closest_in_list(ally_coord, j_ennemy.cases)
+        closest_neutral = find_closest_in_list(ally_coord, j_neutre.cases)
+        # TODO vérifier si on a pas de l'herbe (car impraticable)
 
-            if len(closest)==0 or distance < list(closest.values())[0]:
-                closest.clear()
-                closest.update({Coord(ennemy_coord[0], ennemy_coord[1]): distance})
-        output.append(f"MOVE {nb_robot} {coord.x} {coord.y} {list(closest.keys())[0].x} {list(closest.keys())[0].y}")
+        # Si la case ennemi est RATION_DISTANCE fois plus proche, on va vesr celle-ci
+        if list(closest_ennemy.values())[0] <= list(closest_neutral.values())[0] * RATIO_DISTANCE:
+            target_coord = Coord(list(closest_ennemy.keys())[0].x, list(closest_ennemy.keys())[0].y)
+        else:
+            target_coord = Coord(list(closest_neutral.keys())[0].x, list(closest_neutral.keys())[0].y)
+        output.append(f"MOVE {nb_robot} {my_robot_coord.x} {my_robot_coord.y} {target_coord.x} {target_coord.y}")
+
+
+
+def find_closest_in_list(ally_coord, list_to_browse):
+    closest = {}
+    for target_case in list_to_browse:
+        target_coord = [target_case.x, target_case.y]
+        distance = math.dist(ally_coord, target_coord)
+
+        if len(closest) == 0 or distance < list(closest.values())[0]:
+            closest.clear()
+            closest.update({Coord(target_coord[0], target_coord[1]): distance})
+    return closest
 
 
 def spawn_closest_ennemy_cases():
